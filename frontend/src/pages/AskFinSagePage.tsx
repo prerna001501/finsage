@@ -43,7 +43,8 @@ export default function AskFinSagePage() {
     setLoading(true)
     try {
       const history = messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
-      const res = await axios.post('http://localhost:8000/api/v1/chat/ask', { question, history })
+      const baseURL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
+      const res = await axios.post(`${baseURL}/api/v1/chat/ask`, { question, history })
       setMessages(prev => [...prev, { role: 'ai', content: res.data.answer, timestamp: new Date() }])
     } catch {
       setMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I ran into an issue. Please try again in a moment.', timestamp: new Date() }])
