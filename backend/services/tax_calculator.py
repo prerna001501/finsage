@@ -50,15 +50,27 @@ def calculate_old_regime(
     cess = tax * 0.04
     total_tax = tax + cess
 
+    deductions_claimed = round(std_deduction + hra_exempt + deduction_80c + deduction_80d + deduction_nps + deduction_home_loan + other_deductions)
     return {
         "taxable_income": round(taxable_income),
         "tax_before_cess": round(tax),
         "cess": round(cess),
         "total_tax": round(total_tax),
         "effective_rate": round(total_tax / gross_salary * 100, 2) if gross_salary > 0 else 0,
-        "deductions_claimed": round(
-            std_deduction + hra_exempt + deduction_80c + deduction_80d + deduction_nps + deduction_home_loan + other_deductions
-        ),
+        "deductions_claimed": deductions_claimed,
+        "calculation_steps": [
+            {"step": "Gross Salary", "amount": round(gross_salary), "note": "Total CTC before deductions"},
+            {"step": "Standard Deduction (u/s 16)", "amount": -std_deduction, "note": "Flat ₹50,000 for all salaried"},
+            {"step": "HRA Exemption (u/s 10(13A))", "amount": -round(hra_exempt), "note": f"Least of: HRA received, Rent-10% basic, 50%/40% basic"},
+            {"step": "80C Deduction", "amount": -round(deduction_80c), "note": "ELSS, PPF, LIC, EPF — max ₹1.5L"},
+            {"step": "80D Health Insurance", "amount": -round(deduction_80d), "note": "Self + parents — max ₹50,000"},
+            {"step": "80CCD(1B) NPS", "amount": -round(deduction_nps), "note": "Additional NPS — max ₹50,000"},
+            {"step": "24(b) Home Loan Interest", "amount": -round(deduction_home_loan), "note": "Self-occupied — max ₹2L"},
+            {"step": "Net Taxable Income", "amount": round(taxable_income), "note": "After all deductions", "highlight": True},
+            {"step": "Income Tax (slab)", "amount": round(tax), "note": "Old regime slabs: 0/5/20/30%"},
+            {"step": "Health & Education Cess (4%)", "amount": round(cess), "note": "4% of tax"},
+            {"step": "Total Tax Payable", "amount": round(total_tax), "note": "Final liability", "highlight": True},
+        ],
     }
 
 
@@ -95,6 +107,14 @@ def calculate_new_regime(gross_salary: float) -> dict:
         "total_tax": round(total_tax),
         "effective_rate": round(total_tax / gross_salary * 100, 2) if gross_salary > 0 else 0,
         "deductions_claimed": std_deduction,
+        "calculation_steps": [
+            {"step": "Gross Salary", "amount": round(gross_salary), "note": "Total CTC before deductions"},
+            {"step": "Standard Deduction (u/s 16)", "amount": -std_deduction, "note": "Flat ₹75,000 under new regime"},
+            {"step": "Net Taxable Income", "amount": round(taxable_income), "note": "No other deductions in new regime", "highlight": True},
+            {"step": "Income Tax (slab)", "amount": round(tax), "note": "New regime slabs: 0/5/10/15/20/30%"},
+            {"step": "Health & Education Cess (4%)", "amount": round(cess), "note": "4% of tax"},
+            {"step": "Total Tax Payable", "amount": round(total_tax), "note": "Final liability", "highlight": True},
+        ],
     }
 
 

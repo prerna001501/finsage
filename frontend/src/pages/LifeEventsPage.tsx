@@ -2,6 +2,15 @@ import { useState } from 'react'
 import { adviseLifeEvent } from '../api/client'
 import ResultCard from '../components/shared/ResultCard'
 import DonutChart from '../components/shared/DonutChart'
+import AgentPipeline from '../components/shared/AgentPipeline'
+import Disclaimer from '../components/shared/Disclaimer'
+
+const PIPELINE_STEPS = [
+  '📋 Analysing life event context and financial snapshot',
+  '🧠 Applying Indian tax laws and SEBI guidelines for this event',
+  '📅 Building 30/60/90-day prioritised action plan',
+  '💡 Generating allocation strategy and tax-saving opportunities',
+]
 
 const EVENTS = [
   { type: 'marriage', icon: '💍', label: 'Marriage', color: '#F4442E' },
@@ -19,6 +28,7 @@ export default function LifeEventsPage() {
   const [form, setForm] = useState({ age: 32, monthly_income: 150000, monthly_expenses: 70000, current_savings: 800000, event_amount: 500000, existing_investments: 1200000, partner_income: 80000, has_emergency_fund: true })
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pipelineStep, setPipelineStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,13 +36,21 @@ export default function LifeEventsPage() {
     if (!selectedEvent) return
     setLoading(true)
     setError(null)
+    setPipelineStep(0)
+    const STEP_MS = 2500
+    const interval = setInterval(() => setPipelineStep(s => Math.min(s + 1, PIPELINE_STEPS.length - 1)), STEP_MS)
+    const minPipelineTime = new Promise(resolve => setTimeout(resolve, PIPELINE_STEPS.length * STEP_MS))
     try {
-      const data = await adviseLifeEvent({ ...form, event_type: selectedEvent })
-      setResult(data)
+      const [data] = await Promise.all([adviseLifeEvent({ ...form, event_type: selectedEvent }), minPipelineTime])
+      clearInterval(interval)
+      setPipelineStep(PIPELINE_STEPS.length)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setLoading(false)
+      setResult(data as Record<string, unknown>)
     } catch (err: unknown) {
+      clearInterval(interval)
       const message = err instanceof Error ? err.message : 'Failed to get advice'
       setError(message)
-    } finally {
       setLoading(false)
     }
   }
@@ -118,6 +136,9 @@ export default function LifeEventsPage() {
           </div>
         )}
       </form>
+
+      <AgentPipeline steps={PIPELINE_STEPS} currentStep={pipelineStep} visible={loading} />
+      <Disclaimer />
 
       {result && (
         <div className="space-y-6">

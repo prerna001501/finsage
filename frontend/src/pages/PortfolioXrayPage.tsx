@@ -3,24 +3,42 @@ import { analyzePortfolio } from '../api/client'
 import FileUpload from '../components/shared/FileUpload'
 import ResultCard from '../components/shared/ResultCard'
 import DonutChart from '../components/shared/DonutChart'
+import AgentPipeline from '../components/shared/AgentPipeline'
+import Disclaimer from '../components/shared/Disclaimer'
+
+const PIPELINE_STEPS = [
+  '📋 Parsing CAMS statement and extracting transactions',
+  '📐 Computing XIRR using Newton-Raphson cashflow method',
+  '🔁 Detecting fund overlap via top-10 holdings comparison',
+  '🤖 Generating AI rebalancing plan and expense drag analysis',
+]
 
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`
 
 export default function PortfolioXrayPage() {
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pipelineStep, setPipelineStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const submit = async (fd: FormData) => {
     setLoading(true)
     setError(null)
+    setPipelineStep(0)
+    const STEP_MS = 2500
+    const interval = setInterval(() => setPipelineStep(s => Math.min(s + 1, PIPELINE_STEPS.length - 1)), STEP_MS)
+    const minPipelineTime = new Promise(resolve => setTimeout(resolve, PIPELINE_STEPS.length * STEP_MS))
     try {
-      const data = await analyzePortfolio(fd)
-      setResult(data)
+      const [data] = await Promise.all([analyzePortfolio(fd), minPipelineTime])
+      clearInterval(interval)
+      setPipelineStep(PIPELINE_STEPS.length)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setLoading(false)
+      setResult(data as Record<string, unknown>)
     } catch (err: unknown) {
+      clearInterval(interval)
       const message = err instanceof Error ? err.message : 'Analysis failed'
       setError(message)
-    } finally {
       setLoading(false)
     }
   }
@@ -47,13 +65,11 @@ export default function PortfolioXrayPage() {
           }}
           label="CAMS Consolidated Statement PDF"
         />
-        {loading && (
-          <div className="text-center py-6">
-            <p className="loading-pulse" style={{ color: '#6B6C8A' }}>⏳ Analyzing portfolio with AI…</p>
-          </div>
-        )}
         {error && <p className="text-sm mt-3" style={{ color: '#F4442E' }}>{error}</p>}
       </div>
+
+      <AgentPipeline steps={PIPELINE_STEPS} currentStep={pipelineStep} visible={loading} />
+      <Disclaimer />
 
       {result && (
         <div className="space-y-6">

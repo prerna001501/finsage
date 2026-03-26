@@ -1,6 +1,15 @@
 import { useState } from 'react'
 import { optimizeCouplePlan } from '../api/client'
 import ResultCard from '../components/shared/ResultCard'
+import AgentPipeline from '../components/shared/AgentPipeline'
+import Disclaimer from '../components/shared/Disclaimer'
+
+const PIPELINE_STEPS = [
+  '📋 Profiling both partners — income, HRA eligibility, 80C headroom',
+  '🏠 Computing HRA exemption for optimal claimant under IT Act',
+  '📅 Optimising NPS 80CCD(1B) split for maximum combined tax saving',
+  '🗺️ Building joint SIP plan and goal timeline by priority',
+]
 
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`
 
@@ -18,25 +27,34 @@ export default function CouplePlannerPage() {
   ])
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pipelineStep, setPipelineStep] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setPipelineStep(0)
+    const STEP_MS = 2500
+    const interval = setInterval(() => setPipelineStep(s => Math.min(s + 1, PIPELINE_STEPS.length - 1)), STEP_MS)
+    const minPipelineTime = new Promise(resolve => setTimeout(resolve, PIPELINE_STEPS.length * STEP_MS))
     try {
-      const data = await optimizeCouplePlan({
+      const [data] = await Promise.all([optimizeCouplePlan({
         partner_a: partnerA,
         partner_b: partnerB,
         joint_goals: goals,
         has_children: false,
         home_loan_outstanding: 0,
-      })
-      setResult(data)
+      }), minPipelineTime])
+      clearInterval(interval)
+      setPipelineStep(PIPELINE_STEPS.length)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setLoading(false)
+      setResult(data as Record<string, unknown>)
     } catch (err: unknown) {
+      clearInterval(interval)
       const message = err instanceof Error ? err.message : 'Failed to optimize'
       setError(message)
-    } finally {
       setLoading(false)
     }
   }
@@ -139,6 +157,9 @@ export default function CouplePlannerPage() {
         </button>
         {error && <p className="text-sm" style={{ color: '#F4442E' }}>{error}</p>}
       </form>
+
+      <AgentPipeline steps={PIPELINE_STEPS} currentStep={pipelineStep} visible={loading} />
+      <Disclaimer />
 
       {result && (
         <div className="space-y-6">

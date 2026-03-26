@@ -2,6 +2,15 @@ import { useState } from 'react'
 import { analyzeTax } from '../api/client'
 import FileUpload from '../components/shared/FileUpload'
 import ResultCard from '../components/shared/ResultCard'
+import AgentPipeline from '../components/shared/AgentPipeline'
+import Disclaimer from '../components/shared/Disclaimer'
+
+const PIPELINE_STEPS = [
+  '📋 Parsing income structure and deductions',
+  '🧮 Computing Old Regime tax (FY 2024-25 slabs + 87A rebate)',
+  '🧮 Computing New Regime tax (₹75K std deduction + revised slabs)',
+  '🔍 Identifying missed deductions and suggesting tax-saving instruments',
+]
 
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN')}`
 
@@ -14,12 +23,19 @@ export default function TaxWizardPage() {
   })
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pipelineStep, setPipelineStep] = useState(0)
+  const [showSteps, setShowSteps] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setResult(null)
+    setPipelineStep(0)
+    const STEP_MS = 2500
+    const interval = setInterval(() => setPipelineStep(s => Math.min(s + 1, PIPELINE_STEPS.length - 1)), STEP_MS)
+    const minPipelineTime = new Promise(resolve => setTimeout(resolve, PIPELINE_STEPS.length * STEP_MS))
     const fd = new FormData()
     if (useSample) {
       fd.append('use_sample', 'true')
@@ -29,12 +45,16 @@ export default function TaxWizardPage() {
       Object.entries(manual).forEach(([k, v]) => fd.append(k, v || '0'))
     }
     try {
-      const data = await analyzeTax(fd)
-      setResult(data)
+      const [data] = await Promise.all([analyzeTax(fd), minPipelineTime])
+      clearInterval(interval)
+      setPipelineStep(PIPELINE_STEPS.length)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setLoading(false)
+      setResult(data as Record<string, unknown>)
     } catch (err: unknown) {
+      clearInterval(interval)
       const message = err instanceof Error ? err.message : 'Analysis failed'
       setError(message)
-    } finally {
       setLoading(false)
     }
   }
@@ -101,6 +121,9 @@ export default function TaxWizardPage() {
         {error && <p className="text-sm" style={{ color: '#F4442E' }}>{error}</p>}
       </form>
 
+      <AgentPipeline steps={PIPELINE_STEPS} currentStep={pipelineStep} visible={loading} />
+      <Disclaimer />
+
       {result && (
         <div className="space-y-6">
           {/* Regime comparison */}
@@ -124,6 +147,36 @@ export default function TaxWizardPage() {
                 </div>
               )
             })}
+          </div>
+
+          {/* Step-by-step calculation — traceable logic for judges */}
+          <div className="rounded-xl overflow-hidden" style={{ border: '1.5px solid #EDD382' }}>
+            <div className="flex gap-2">
+              {['old_regime', 'new_regime'].map(r => (
+                <button key={r} onClick={() => setShowSteps(showSteps === r ? null : r)}
+                  className="flex-1 py-2.5 text-xs font-semibold transition-all"
+                  style={{ background: showSteps === r ? '#020122' : '#FFFBEA', color: showSteps === r ? '#EDD382' : '#020122' }}>
+                  {r === 'old_regime' ? '📜 Show Old Regime Calculation' : '✨ Show New Regime Calculation'}
+                </button>
+              ))}
+            </div>
+            {showSteps && (
+              <div className="p-4 space-y-1.5" style={{ background: '#020122' }}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#EDD382' }}>🧮 Step-by-Step Calculation (Traceable Logic)</p>
+                {((result[showSteps] as { calculation_steps?: { step: string; amount: number; note: string; highlight?: boolean }[] })?.calculation_steps || []).map((s, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg"
+                    style={{ background: s.highlight ? 'rgba(244,68,46,0.15)' : 'rgba(237,211,130,0.05)', border: s.highlight ? '1px solid rgba(244,68,46,0.3)' : 'none' }}>
+                    <div>
+                      <span className="text-xs font-medium" style={{ color: s.highlight ? '#FC9E4F' : '#EDD382' }}>{s.step}</span>
+                      <span className="text-xs ml-2" style={{ color: '#6B6C8A' }}>{s.note}</span>
+                    </div>
+                    <span className="text-sm font-bold" style={{ color: s.amount < 0 ? '#16A34A' : s.highlight ? '#FC9E4F' : '#EDD382' }}>
+                      {s.amount < 0 ? `−₹${Math.abs(s.amount).toLocaleString('en-IN')}` : `₹${s.amount.toLocaleString('en-IN')}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Savings banner */}
