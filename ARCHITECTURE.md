@@ -19,17 +19,17 @@ FinSage is built on a **5-agent pipeline architecture** where each agent has a s
 |                    FINSAGE PIPELINE ORCHESTRATOR                        |
 |              FastAPI · 7 routers · Python 3.11 · Render cloud           |
 |                                                                         |
-|  +----------+   +--------------+   +---------------+   +------------+  |
-|  | AGENT 1  |-->|   AGENT 2    |-->|    AGENT 3    |-->|  AGENT 4   |  |
-|  |  Input & |   | Quantitative |   |  Regulatory   |   |  Advisory  |  |
-|  |Validation|   |   Analysis   |   |   Context     |   |    LLM     |  |
-|  |          |   |    Agent     |   |    Agent      |   |   Agent    |  |
-|  +----------+   +--------------+   +---------------+   +------------+  |
+|  +----------+   +--------------+   +---------------+   +------------+   |
+|  | AGENT 1  |-->|   AGENT 2    |-->|    AGENT 3    |-->|  AGENT 4   |   |
+|  |  Input & |   | Quantitative |   |  Regulatory   |   |  Advisory  |   |
+|  |Validation|   |   Analysis   |   |   Context     |   |    LLM     |   |
+|  |          |   |    Agent     |   |    Agent      |   |   Agent    |   |
+|  +----------+   +--------------+   +---------------+   +------------+   |
 |                                                               v         |
-|                       +-------------------------------+                 |
-|                       |  AGENT 5: Compliance Guard    |                 |
-|                       |  SEBI boundary enforcement    |                 |
-|                       +-------------------------------+                 |
+|                                     +-------------------------------+   |
+|                                     |    AGENT 5: Compliance Guard  |   |
+|                                     |    SEBI boundary enforcement  |   |
+|                                     +-------------------------------+   |
 +-------------------------------------------------------------------------+
                                  |
                                  v
